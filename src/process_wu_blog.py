@@ -80,13 +80,13 @@ class XLBK:
             proxy = urllib3.ProxyManager('http://child-prc.intel.com:913/', maxsize=10)
             response= proxy.request('GET',url)
     #             response=conn.urlopen(request)
-            return response.data.decode('utf-8')
+#             return response.data.decode('utf-8')
+            return response.read()
         except TimeoutError as e:
             print ("连接新浪博客失败,错误原因: ",e.reason)
     
     def getTitle(self,page):
         soup = BeautifulSoup(page, 'lxml')
-        print(soup.title.string)
         return soup.title.string
 #         pattern = re.compile('blogname.*?blognamespan.*?>(.*?)</span>')
 #         spans = soup.find_all('span')
@@ -131,6 +131,7 @@ class XLBK:
 #             return 1
 #  
     def getContent(self,page):
+        print(page)
         soup = BeautifulSoup(page, 'lxml')
 #         print('-------- content ---------------------------------------------------')
 #         print(soup.prettify('gb18030'))
@@ -144,16 +145,19 @@ class XLBK:
             print(ahref.contents[0])
             title = ahref.contents[0]
             link = ahref['href']
-            print(ahref['href'])
+            print("title: " + title)
+            print("link: " + link)
+            
             
             atc_time_span = div.find('span', attrs={'class': 'atc_tm SG_txtc'})
-            print(atc_time_span.text)
             time = atc_time_span.text
+            print("time: " + time)
+            
             
             atc_data = div.find('span', attrs={'class':'atc_data'})
             blogId = atc_data.attrs['id']
             blogId = remove_prefix(blogId, 'count_')
-            print(blogId)
+            print("blogId: " + blogId)
                         
             print(div)
             
@@ -210,9 +214,9 @@ class XLBK:
  
     def start(self):
         indexPage = self.getPage(1)
-#         print("Get index Page: " + indexPage)
+        print("Get index Page: " + indexPage)
         pageNum = self.getPageNum(indexPage)
-        title = self.getTitle(indexPage)
+#         title = self.getTitle(indexPage)
 #         self.setFileTitle(self.fileName)
 #         if pageNum == None:
 #             print("URL已失效，请重试")
