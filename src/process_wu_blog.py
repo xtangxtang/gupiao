@@ -3,13 +3,14 @@
 
 import urllib3
 import re
+import datetime
 from bs4 import BeautifulSoup 
  
 class BlogAttributes:
-    def __init__(self,blogId, title, date, readCount, link):
-        self.blogId = blogId
-        self.title = title
+    def __init__(self,date, blogId, title, readCount, link):
         self.date = date
+        self.blogId = blogId
+        self.title = title        
         self.readCount = readCount
         self.link = link  
 
@@ -30,7 +31,41 @@ class BlogAttributes:
 
     def get_link(self):
         return self.link
- 
+
+def convert_to_dict(obj):
+    '''把Object对象转换成Dict对象'''
+    dict = {}
+    dict.update(obj.__dict__)
+    return dict
+
+def convert_to_dicts(objs):
+    '''把对象列表转换为字典列表'''
+    obj_arr = []
+    for o in objs:
+        #把Object对象转换成Dict对象
+        dict = {}
+        dict.update(o.__dict__)
+        obj_arr.append(dict)
+    return obj_arr
+
+def class_to_dict(obj):
+    '''把对象(支持单个对象、list、set)转换成字典'''
+    is_list = obj.__class__ == [].__class__
+    is_set = obj.__class__ == set().__class__
+    if is_list or is_set:
+        print("is set")
+        obj_arr = []
+        for o in obj:
+            #把Object对象转换成Dict对象
+            dict = {}
+            dict.update(o.__dict__)
+#             print("insert" + str(convert_to_dict(o)))
+            obj_arr.append(dict)
+        return obj_arr
+    else:
+        dict = {}
+        dict.update(obj.__dict__)
+        return dict 
 
 def remove_prefix(text, prefix):
     if text.startswith(prefix):
@@ -77,11 +112,12 @@ class XLBK:
         try:
             url=self.baseURL+str(pageNum)+'.html'
             print("Try to GET: " + url)
-            proxy = urllib3.ProxyManager('http://child-prc.intel.com:913/', maxsize=10)
-            response= proxy.request('GET',url)
-    #             response=conn.urlopen(request)
-#             return response.data.decode('utf-8')
-            return response.read()
+#             proxy = urllib3.ProxyManager('http://child-prc.intel.com:913/', maxsize=10)
+#             response= proxy.request('GET',url)
+#             response=conn.urlopen(request)
+            http = urllib3.PoolManager()
+            response = http.request('GET',url)
+            return response.data.decode('utf-8')
         except TimeoutError as e:
             print ("连接新浪博客失败,错误原因: ",e.reason)
     
@@ -130,39 +166,41 @@ class XLBK:
 #             print(result)
 #             return 1
 #  
-    def getContent(self,page):
-        print(page)
+    def getContent(self,page,contents):
         soup = BeautifulSoup(page, 'lxml')
 #         print('-------- content ---------------------------------------------------')
 #         print(soup.prettify('gb18030'))
 #         print('-------- title ---------------------------------------------------')
-        divs = soup.find_all('div', attrs={'class': 'articleCell SG_j_linedot1'})
-        contents = []
+        divs = soup.find_all('div', attrs={'class': 'articleCell SG_j_linedot1'})       
         for div in divs:      
             atc_title_span = div.find('span', attrs={'class': 'atc_title'})
             ahref = atc_title_span.find('a', href=True)
-            print(ahref)
-            print(ahref.contents[0])
+#             print(ahref)
+#             print(ahref.contents[0])
             title = ahref.contents[0]
             link = ahref['href']
+            print('-----------------------------------------------------------')
             print("title: " + title)
             print("link: " + link)
             
             
             atc_time_span = div.find('span', attrs={'class': 'atc_tm SG_txtc'})
             time = atc_time_span.text
-            print("time: " + time)
+            time = datetime.datetime.strptime(time, "%Y-%m-%d %H:%M")
+            print("time: " + str(time))
             
             
             atc_data = div.find('span', attrs={'class':'atc_data'})
             blogId = atc_data.attrs['id']
             blogId = remove_prefix(blogId, 'count_')
             print("blogId: " + blogId)
-                        
-            print(div)
             
-            exit()
-        return contents
+            bar = BlogAttributes(time, blogId, title, 0, link)
+            contents.add(bar)
+            print('-----------------------------------------------------------')
+            break
+        print(contents)
+#         return contents
 #  
     def getUrl(self,page):
         pattern =re.compile('<span class="atc_title">.*?<a.*?href="(.*?)">.*?</a>.*?</span>')
@@ -214,7 +252,6 @@ class XLBK:
  
     def start(self):
         indexPage = self.getPage(1)
-        print("Get index Page: " + indexPage)
         pageNum = self.getPageNum(indexPage)
 #         title = self.getTitle(indexPage)
 #         self.setFileTitle(self.fileName)
@@ -225,8 +262,9 @@ class XLBK:
             print("该博客共有" + str(pageNum) + "页")
             for i in range(int(pageNum)+1, 1, -1):
                 print("正在处理第" + str(i) + "页数据")
-                page = self.getPage(i)
-                contents = self.getContent(page)
+                page = self.getPage(i)                
+                self.getContent(page,contents)
+            print(class_to_dict(contents))
 #                 urls =self.getUrl(page)
 #                 self.writeData(contents,urls)
         except IOError as e:
@@ -240,5 +278,7 @@ print("打开一个新浪博客的博文目录\n如http://blog.sina.com.cn/s/articlelist_18666
 baseURL = 'http://blog.sina.com.cn/s/articlelist_1216826604_0_'
 articleTag = '1'
 fileName='/home/xtang/wu'
+global contents
+contents = set()
 xlbk = XLBK(baseURL,articleTag,fileName)
 xlbk.start()
