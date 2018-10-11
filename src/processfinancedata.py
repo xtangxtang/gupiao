@@ -11,7 +11,7 @@ import pandas as pd
 #     4.每股现金流为正数.
 #===============================================================================
 
-def getHighValue(year,quot):
+def getHighValue(year,quot, refresh=1):
     #===========================================================================
     # code,代码
     # name,名称
@@ -37,17 +37,39 @@ def getHighValue(year,quot):
     # npr,净利润率(%)
     # holders,股东人数
     #===========================================================================
-    try:
-        os.remove("basics-" + str(year) +"-" + str(quot) + ".csv")
-    except OSError:
-        pass
-    basicsDf = ts.get_stock_basics()
-    print(basicsDf.dtypes)
-    basicsDf['name'] = basicsDf['name'].astype('str')
-    basicsDf['industry'] = basicsDf['industry'].astype('str')
-    basicsDf['area'] = basicsDf['area'].astype('str')
-    basicsDf.to_csv("basics-" + str(year) +"-" + str(quot) + ".csv", header=list(basicsDf), sep=',', encoding='utf-8', index = True)   
+    basicFilePath = "..//basics-" + str(year) +"-" + str(quot) + ".xlsx"
     
+    if refresh:
+        try:
+            os.remove(basicFilePath)
+        except OSError:
+            pass     
+    
+    basicFileHeader = ['代码','名称','所属行业','地区','市盈率','流通股本(亿)','总股本(亿)','总资产(万)','流动资产','固定资产',
+                       '公积金','每股公积金','每股收益','每股净资','市净率','上市日期','未分利润','每股未分配','收入同比(%)','利润同比(%)',
+                       '毛利率(%)','净利润率(%)','股东人数']    
+    
+    if os.path.isfile(basicFilePath):
+        basicsDf = pd.read_excel(basicFilePath, index_col=False,encoding='utf-8')
+        basicsDf['代码'] = basicsDf['代码'].astype('str')
+        basicsDf['代码'] = basicsDf['代码'].apply(lambda x: x.zfill(6))
+    else:
+        basicsDf = ts.get_stock_basics()    
+        basicsDf.reset_index(level=0, inplace=True)
+        basicsDf['code'] = basicsDf['code'].apply(lambda x: x.zfill(6))
+        basicsDf['code'] = basicsDf['code'].astype('str')
+        basicsDf['name'] = basicsDf['name'].astype('str')
+        basicsDf['industry'] = basicsDf['industry'].astype('str')
+        basicsDf['area'] = basicsDf['area'].astype('str')        
+        basicsDf.to_excel(basicFilePath, header=list(basicFileHeader), encoding='utf-8', index = False)   
+    
+    basicsFilterFilePath = "..//basics-filter-" + str(year) +"-" + str(quot) + ".xlsx"
+    totalCond = basicsDf['总股本(亿)'] <= 2
+    espCond = basicsDf['每股收益'] >= 0.5
+    bvpsCond = basicsDf['每股净资'] >= 10
+    reservedPerShareCond = basicsDf['每股公积金'] >= 3
+    basicsDfFilter = basicsDf.loc[totalCond & espCond & bvpsCond & reservedPerShareCond]    
+    basicsDfFilter.to_excel(basicsFilterFilePath, header=list(basicFileHeader), encoding='utf-8', index = False)   
     
     
     
@@ -65,13 +87,32 @@ def getHighValue(year,quot):
     # report_date,发布日期
     #===========================================================================
     #获取业绩报表数据   
-    achievDf = ts.get_report_data(year,quot)
-    achievDf['code'] = achievDf['code'].apply(str)
-    achievDf.to_csv("achiev-" + str(year) +"-" + str(quot) + ".csv", header=list(achievDf), sep=',', encoding='utf-8', index = False)    
-    epsCond = achievDf['eps'] >= 0.5
-    bvpsCond = achievDf['bvps'] >= 10
-    epcfCond = achievDf['epcf'] >= 0
-    achievDfFilter = achievDf.loc[epsCond & bvpsCond & epcfCond]
-    achievDfFilter.to_csv('achievFilter.csv', header=list(achievDfFilter), sep=',', encoding='utf-8', index = False)     
+    achievFilePath = "..//achiev-" + str(year) +"-" + str(quot) + ".xlsx"
     
-getHighValue(2018,2)  
+    if refresh:
+        try:
+            os.remove(achievFilePath)
+        except OSError:
+            pass       
+
+    achievFileHeader = ['代码','名称','每股收益','每股收益同比','每股净资产','净资产收益率(%)','每股现金流量(元)','净利润(万元)','净利润同比(%)','分配方案',
+                       '发布日期']        
+    if os.path.isfile(achievFilePath):
+        achievDf = pd.read_excel(achievFilePath, index_col=False,encoding='utf-8')
+        achievDf['代码'] = achievDf['代码'].astype('str')
+        achievDf['代码'] = achievDf['代码'].apply(lambda x: x.zfill(6))        
+    else:
+        achievDf = ts.get_report_data(year,quot)
+        print(achievDf.head(5))
+#         achievDf.reset_index(level=0, inplace=True)
+        achievDf['code'] = achievDf['code'].apply(lambda x: x.zfill(6))
+        achievDf['code'] = achievDf['code'].astype('str')
+        achievDf.to_excel(achievFilePath, header=list(achievFileHeader), encoding='utf-8', index = False)
+        
+    epcfCond = achievDf['每股现金流量(元)'] >= 0
+    achievDfFilter = achievDf.loc[epcfCond]
+    
+    achievFilterFilePath = "..//achiev-filter-" + str(year) +"-" + str(quot) + ".xlsx"
+    achievDfFilter.to_excel(achievFilterFilePath, header=list(achievDfFilter), encoding='utf-8', index = False)     
+    
+getHighValue(2018,2,0)  
