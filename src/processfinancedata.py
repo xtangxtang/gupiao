@@ -30,7 +30,7 @@ def getHighValue(year,quot, refresh=1):
     # reserved,公积金
     # reservedPerShare,每股公积金
     # esp,每股收益
-    # bvps,每股净资
+    # bvps,每股净资产
     # pb,市净率
     # timeToMarket,上市日期
     # undp,未分利润
@@ -51,7 +51,7 @@ def getHighValue(year,quot, refresh=1):
             pass     
     
     basicFileHeader = ['代码','名称','所属行业','地区','市盈率','流通股本(亿)','总股本(亿)','总资产(万)','流动资产','固定资产',
-                       '公积金','每股公积金','每股收益','每股净资','市净率','上市日期','未分利润','每股未分配','收入同比(%)','利润同比(%)',
+                       '公积金','每股公积金','每股收益','每股净资产','市净率','上市日期','未分利润','每股未分配','收入同比(%)','利润同比(%)',
                        '毛利率(%)','净利润率(%)','股东人数']    
     
     if os.path.isfile(basicFilePath):
@@ -122,9 +122,11 @@ def getHighValue(year,quot, refresh=1):
 #     epcfCond = achievDf['每股现金流量(元)'] >= 0
 #     achievDfFilter = achievDf.loc[epcfCond]
     achievDfFilter = achievDf
-    duplicatedCols = achievDfFilter.columns.difference(basicsDfFilter)
-    print(duplicatedCols)
-    dfNew = pd.merge(basicsDfFilter, achievDfFilter[duplicatedCols], how='inner', left_on = '代码', right_on = '代码')    
+    diffCols = achievDfFilter.columns.difference(basicsDfFilter.columns)
+    diffCols = list(diffCols) + '代码'
+    print(diffCols)
+    dfNew = pd.merge(basicsDfFilter, achievDfFilter[diffCols], how='inner', left_on = '代码', right_on = '代码') 
+    print(dfNew)   
     dfNew.to_excel(dfNewFilePath, header=list(dfNew), encoding='utf-8', index = False)     
     
 getHighValue(2018,2,0)  
