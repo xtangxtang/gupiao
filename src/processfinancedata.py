@@ -12,6 +12,10 @@ import pandas as pd
 #===============================================================================
 
 def getHighValue(year,quot, refresh=1):
+    directory = '..//repository//report//' + str(year) + '-'+str(quot) + "//"
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    
     #===========================================================================
     # code,代码
     # name,名称
@@ -37,7 +41,8 @@ def getHighValue(year,quot, refresh=1):
     # npr,净利润率(%)
     # holders,股东人数
     #===========================================================================
-    basicFilePath = "..//basics-" + str(year) +"-" + str(quot) + ".xlsx"
+    print("############# 处理基本数据 #########################")
+    basicFilePath = directory +"raw-basics-" + str(year) +"-" + str(quot) + ".xlsx"
     
     if refresh:
         try:
@@ -61,14 +66,18 @@ def getHighValue(year,quot, refresh=1):
         basicsDf['name'] = basicsDf['name'].astype('str')
         basicsDf['industry'] = basicsDf['industry'].astype('str')
         basicsDf['area'] = basicsDf['area'].astype('str')        
-        basicsDf.to_excel(basicFilePath, header=list(basicFileHeader), encoding='utf-8', index = False)   
+        basicsDf.to_excel(basicFilePath, header=list(basicFileHeader), encoding='utf-8', index = False)
+        basicsDf = pd.read_excel(basicFilePath, index_col=False,encoding='utf-8')   
     
-    basicsFilterFilePath = "..//basics-filter-" + str(year) +"-" + str(quot) + ".xlsx"
-    totalCond = basicsDf['总股本(亿)'] <= 2
+    basicsFilterFilePath = directory +"basics-filter-" + str(year) +"-" + str(quot) + ".xlsx"    
     espCond = basicsDf['每股收益'] >= 0.5
+    totalCond = basicsDf['总股本(亿)'] <= 2
     bvpsCond = basicsDf['每股净资'] >= 10
     reservedPerShareCond = basicsDf['每股公积金'] >= 3
-    basicsDfFilter = basicsDf.loc[totalCond & espCond & bvpsCond & reservedPerShareCond]    
+    revCond = basicsDf['收入同比(%)'] > 0
+    profitCond = basicsDf['利润同比(%)'] > 0
+    
+    basicsDfFilter = basicsDf.loc[totalCond & espCond & bvpsCond & reservedPerShareCond & revCond & profitCond]    
     basicsDfFilter.to_excel(basicsFilterFilePath, header=list(basicFileHeader), encoding='utf-8', index = False)   
     
     
@@ -86,8 +95,10 @@ def getHighValue(year,quot, refresh=1):
     # distrib,分配方案
     # report_date,发布日期
     #===========================================================================
-    #获取业绩报表数据   
-    achievFilePath = "..//achiev-" + str(year) +"-" + str(quot) + ".xlsx"
+    #获取业绩报表数据  
+    print("############# 业绩报表数据  #########################") 
+    achievFilePath = directory +"raw-achiev-" + str(year) +"-" + str(quot) + ".xlsx"
+    dfNewFilePath = directory + "mix-" + str(year) +"-" + str(quot) + ".xlsx"
     
     if refresh:
         try:
@@ -103,16 +114,17 @@ def getHighValue(year,quot, refresh=1):
         achievDf['代码'] = achievDf['代码'].apply(lambda x: x.zfill(6))        
     else:
         achievDf = ts.get_report_data(year,quot)
-        print(achievDf.head(5))
-#         achievDf.reset_index(level=0, inplace=True)
         achievDf['code'] = achievDf['code'].apply(lambda x: x.zfill(6))
         achievDf['code'] = achievDf['code'].astype('str')
         achievDf.to_excel(achievFilePath, header=list(achievFileHeader), encoding='utf-8', index = False)
+        achievDf = pd.read_excel(achievFilePath, index_col=False,encoding='utf-8')
         
-    epcfCond = achievDf['每股现金流量(元)'] >= 0
-    achievDfFilter = achievDf.loc[epcfCond]
-    
-    achievFilterFilePath = "..//achiev-filter-" + str(year) +"-" + str(quot) + ".xlsx"
-    achievDfFilter.to_excel(achievFilterFilePath, header=list(achievDfFilter), encoding='utf-8', index = False)     
+#     epcfCond = achievDf['每股现金流量(元)'] >= 0
+#     achievDfFilter = achievDf.loc[epcfCond]
+    achievDfFilter = achievDf
+    duplicatedCols = achievDfFilter.columns.difference(basicsDfFilter)
+    print(duplicatedCols)
+    dfNew = pd.merge(basicsDfFilter, achievDfFilter[duplicatedCols], how='inner', left_on = '代码', right_on = '代码')    
+    dfNew.to_excel(dfNewFilePath, header=list(dfNew), encoding='utf-8', index = False)     
     
 getHighValue(2018,2,0)  
